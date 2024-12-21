@@ -12,12 +12,16 @@ const Shop = () => {
     const [itemsPerPage, setItemsPerPage] = useState(9);
     const numberOfPages = Math.ceil(count / itemsPerPage);
     const [currentPage, setCurrentPage] = useState(0)
+    const storedCart = getShoppingCart();
+    const [newStoredCart, setNewStoredCart] = useState()
+
 
     // const pages = [];
     // for( let i = 0; i < numberOfPages; i++){
     //     pages.push(i)
     // }
     const pages = [...Array(numberOfPages).keys()]
+
 
     useEffect(() => {
         fetch(`http://localhost:5000/products?page=${currentPage}&size=${itemsPerPage}`)
@@ -26,26 +30,25 @@ const Shop = () => {
     }, [currentPage, itemsPerPage]);
 
     useEffect(() => {
-        const storedCart = getShoppingCart();
-        const savedCart = [];
-        // step 1: get id of the addedProduct
-        for (const id in storedCart) {
-            // step 2: get product from products state by using id
-            const addedProduct = products.find(product => product._id === id)
-            if (addedProduct) {
-                // step 3: add quantity
-                const quantity = storedCart[id];
-                addedProduct.quantity = quantity;
-                // step 4: add the added product to the saved cart
-                savedCart.push(addedProduct);
-            }
-            // console.log('added Product', addedProduct)
+        const storedCartIds = Object.keys(storedCart)
+        const queryString = storedCartIds.map(id => `id=${id}`).join('&');
+
+        if (queryString) {
+            fetch(`http://localhost:5000/data?${queryString}`)
+                .then(res => res.json())
+                .then(data => {
+                    setNewStoredCart(data)
+                })
         }
-        // step 5: set the cart
-        setCart(savedCart);
-    }, [products])
+    }, [])
 
     const handleAddToCart = (product) => {
+
+        const storedCartIds = Object.keys(storedCart)
+
+        const NewStoredCartIds = [...storedCartIds, product._id]
+        const queryString = NewStoredCartIds.map(id => `id=${id}`).join('&');
+
         // cart.push(product); '
         let newCart = [];
         // const newCart = [...cart, product];
@@ -64,10 +67,14 @@ const Shop = () => {
 
         setCart(newCart);
         addToDb(product._id)
+
+        fetch(`http://localhost:5000/data?${queryString}`)
+            .then(res => res.json())
+            .then(data => setNewStoredCart(data))
     }
 
     const handleClearCart = () => {
-        setCart([]);
+        setNewStoredCart([]);
         deleteShoppingCart();
     }
 
@@ -84,7 +91,7 @@ const Shop = () => {
     }
 
     const handleNextPage = () => {
-        if(currentPage < pages.length - 1){
+        if (currentPage < pages.length - 1) {
             setCurrentPage(currentPage + 1)
         }
     }
@@ -102,7 +109,7 @@ const Shop = () => {
             </div>
             <div className="cart-container">
                 <Cart
-                    cart={cart}
+                    cart={newStoredCart}
                     handleClearCart={handleClearCart}
                 >
                     <Link className='proceed-link' to="/orders">
@@ -116,7 +123,7 @@ const Shop = () => {
                 <button onClick={handlePrevPage}>Prev</button>
                 {
                     pages.map(page => <button
-                        className={currentPage === page && 'selected'}
+                        className={currentPage === page ? 'selected' : undefined}
                         onClick={() => setCurrentPage(page)}
                         key={page}
                     > {page} </button>)
